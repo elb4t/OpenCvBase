@@ -39,6 +39,7 @@ import java.io.File;
 public class MainActivity extends Activity implements CameraBridgeViewBase.CvCameraViewListener2,
         LoaderCallbackInterface {
 
+    Procesador procesador;
 
     private static final int SOLICITUD_PERMISO_CAMARA = 0;
     private static final int SOLICITUD_PERMISO_EXTERNAL_STORAGE = 0;
@@ -239,6 +240,7 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
 
     @Override
     public void onCameraViewStarted(int width, int height) {
+        procesador = new Procesador();
         cam_altura = height; //Estas son las que se usan de verdad
         cam_anchura = width;
     }
@@ -270,7 +272,7 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
         }
         Mat esquina = entrada.submat(0,10,0,10); //Arriba-izquierda
         esquina.setTo(new Scalar(255,255,255));
-        Mat salida = entrada;
+        Mat salida = procesador.procesa(entrada);
         if (guardarSiguienteImagen) {//Para foto salida debe ser rgba
             takePhoto(entrada, salida);
             guardarSiguienteImagen = false;
