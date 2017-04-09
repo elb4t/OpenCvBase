@@ -254,7 +254,8 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         Mat entrada;
         if (tipoEntrada == 0) {
-            entrada = inputFrame.rgba();
+            //entrada = inputFrame.rgba();
+            entrada = inputFrame.gray();
         } else {
             if(recargarRecurso == true) {
                 imagenRecurso_ = new Mat();
