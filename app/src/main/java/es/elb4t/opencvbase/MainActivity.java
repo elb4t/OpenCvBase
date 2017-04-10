@@ -281,7 +281,7 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
         Mat entrada;
         if (tipoEntrada == 0) {
             entrada = inputFrame.rgba();
-            //entrada = inputFrame.gray();
+
         } else {
             if(recargarRecurso == true) {
                 imagenRecurso_ = new Mat();
@@ -300,6 +300,12 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
         Mat esquina = entrada.submat(0,10,0,10); //Arriba-izquierda
         esquina.setTo(new Scalar(255,255,255));
         Mat salida = procesador.procesa(entrada);
+
+        if (pantallaPartida == true) {
+            //entrada = inputFrame.gray();
+            procesador.mitadMitad(entrada, salida);
+            Log.e("MAIN-----","Mitad mitad");
+        }
         if (guardarSiguienteImagen) {//Para foto salida debe ser rgba
             takePhoto(entrada, salida);
             guardarSiguienteImagen = false;

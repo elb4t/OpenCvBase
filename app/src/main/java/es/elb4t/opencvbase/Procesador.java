@@ -2,8 +2,16 @@ package es.elb4t.opencvbase;
 
 import android.util.Log;
 
+import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfFloat;
+import org.opencv.core.MatOfInt;
+import org.opencv.core.Rect;
+import org.opencv.core.Scalar;
 import org.opencv.imgproc.Imgproc;
+
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.opencv.imgproc.Imgproc.*;
 
@@ -12,6 +20,7 @@ import static org.opencv.imgproc.Imgproc.*;
  */
 
 public class Procesador {
+
     private Mat gris;
     private Mat salidaintensidad;
     private Mat salidatrlocal;
@@ -19,22 +28,26 @@ public class Procesador {
     private Mat salidasegmentacion;
     private Mat salidaocr;
 
+    // Aumento lineal de contraste
+    MatOfInt canales;
+    MatOfInt numero_bins;
+    MatOfFloat intervalo;
+    Mat hist;
+    List<Mat> imagenes;
+    float[] historiograma;
+
+
     public enum Salida {
         ENTRADA, INTENSIDAD, OPERADOR_LOCAL, BINARIZACION,
         SEGMENTACION, RECONOCIMIENTO
     }
-
     public enum TipoIntensidad {
         SIN_PROCESO, LUMINANCIA, AUMENTO_LINEAL_CONSTANTE,
         EQUALIZ_HISTOGRAMA, ZONAS_ROJAS
     }
-
     public enum TipoOperadorLocal {SIN_PROCESO, PASO_BAJO, PASO_ALTO, GRADIENTES}
-
     public enum TipoBinarizacion {SIN_PROCESO, ADAPTATIVA, MAXIMO}
-
     public enum TipoSegmentacion {SIN_PROCESO}
-
     public enum TipoReconocimiento {SIN_PROCESO}
 
     private Salida mostrarSalida;
@@ -57,6 +70,15 @@ public class Procesador {
         salidasegmentacion = new Mat();
         salidaocr = new Mat();
         gris = new Mat();
+
+        // Aumento lineal de contraste
+        canales = new MatOfInt(0);
+        numero_bins = new MatOfInt(256);
+        intervalo = new MatOfFloat(0,256);
+        hist = new Mat();
+        imagenes = new ArrayList<Mat>();
+        historiograma = new float[256];
+
     }
 
     public Mat procesa(Mat entrada) {
@@ -69,13 +91,13 @@ public class Procesador {
                 salidaintensidad = entrada;
                 break;
             case LUMINANCIA:
-                Log.e("------------","Canales entrada: "+entrada.channels());
                 Imgproc.cvtColor(entrada, salidaintensidad,
                         COLOR_RGBA2GRAY);
                 break;
             case AUMENTO_LINEAL_CONSTANTE:
                 Imgproc.cvtColor(entrada, gris, COLOR_RGBA2GRAY);
-                aumentoLinealConstante(gris); //resultado en salidaintensidad
+                Log.e("PROCESA-----","Aumento lineal contraste");
+                salidaintensidad = aumentoLinealConstante(gris); //resultado en salidaintensidad
                 break;
             case EQUALIZ_HISTOGRAMA:
                 Imgproc.cvtColor(entrada, gris, COLOR_RGBA2GRAY);
@@ -127,7 +149,7 @@ public class Procesador {
 // Reconocimiento OCR
         switch (tipoReconocimiento) {
             case SIN_PROCESO:
-                salidaocr = salidabinarizacion;
+                salidaocr = salidasegmentacion;
                 break;
         }
         return salidaocr;
@@ -136,11 +158,57 @@ public class Procesador {
     void zonaRoja(Mat entrada){
         salidaintensidad = entrada;
     }
-    void aumentoLinealConstante(Mat entrada) {
-        salidaintensidad = entrada;
+    Mat aumentoLinealConstante(Mat entrada) {
+        Mat salida = new Mat();
+        imagenes.clear();
+        imagenes.add(entrada);
+        Imgproc.calcHist(imagenes,canales,new Mat(),hist,numero_bins,intervalo);
+        hist.get(0, 0, historiograma);
+        int total_pixeles = entrada.cols()*entrada.rows();
+        float porcentaje_saturacion = (float) 0.05;
+        int pixeles_saturados = (int) (porcentaje_saturacion * total_pixeles);
+        int xmin = 0;
+        int xmax = 255;
+        float acumulado = 0f;
+        for (int n=0; n < 256; n++){
+            acumulado = acumulado + historiograma[n];
+            if (acumulado > pixeles_saturados){
+                xmin = n;
+                break;
+            }
+        }
+        acumulado = 0;
+        for (int n=255; n >= 0; n--){
+            acumulado = acumulado + historiograma[n];
+            if (acumulado > pixeles_saturados){
+                xmax = n;
+                break;
+            }
+        }
+        Core.subtract(entrada, new Scalar(xmin), salida);
+        float pendiente = ((float) 255.0) / ((float) (xmax-xmin));
+        Core.multiply(salida, new Scalar(pendiente), salida);
+
+        return salida;
     }
     void pasoBajo(Mat entrada) {
         salidatrlocal = entrada;
+    }
+
+    void mitadMitad(Mat entrada, Mat salida){
+        Log.e("MITAD CHANNELS",""+salida.channels());
+        if (salida.channels() == 1) {
+            Imgproc.cvtColor(entrada, entrada, COLOR_RGBA2GRAY);
+        }
+
+        Rect mitad_izquierda = new Rect();
+        mitad_izquierda.x = 0;
+        mitad_izquierda.y = 0;
+        mitad_izquierda.height = entrada.height();
+        mitad_izquierda.width = entrada.width()/2;
+        Mat salida_mitad_izquierda = salida.submat(mitad_izquierda);
+        Mat entrada_mitad_izquierda = entrada.submat(mitad_izquierda);
+        entrada_mitad_izquierda.copyTo(salida_mitad_izquierda);
     }
 
     public void setMostrarSalida(Salida mostrarSalida) {
