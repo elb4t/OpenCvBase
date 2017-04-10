@@ -1,5 +1,7 @@
 package es.elb4t.opencvbase;
 
+
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.preference.PreferenceActivity;
 
@@ -14,4 +16,6 @@ public class Preferencias extends PreferenceActivity {
         super.onCreate(savedInstanceState);
         addPreferencesFromResource(R.xml.preferencias);
     }
+
+
 }

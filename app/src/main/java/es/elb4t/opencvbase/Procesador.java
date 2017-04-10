@@ -9,6 +9,7 @@ import org.opencv.core.MatOfFloat;
 import org.opencv.core.MatOfInt;
 import org.opencv.core.Rect;
 import org.opencv.core.Scalar;
+import org.opencv.core.Size;
 import org.opencv.imgproc.Imgproc;
 
 import java.util.ArrayList;
@@ -22,7 +23,7 @@ import static org.opencv.imgproc.Imgproc.*;
 
 public class Procesador {
 
-    private boolean mostrarEntradaGris = true;
+    private boolean mostrarEntradaGris;
     private Mat salidaTemp;
     private Mat gris;
     private Mat salidaintensidad;
@@ -45,18 +46,26 @@ public class Procesador {
     Mat blue;
     Mat maxGB;
 
+    // Filtro paso-alto
+    Mat paso_bajo;
+
 
     public enum Salida {
         ENTRADA, INTENSIDAD, OPERADOR_LOCAL, BINARIZACION,
         SEGMENTACION, RECONOCIMIENTO
     }
+
     public enum TipoIntensidad {
         SIN_PROCESO, LUMINANCIA, AUMENTO_LINEAL_CONSTANTE,
         EQUALIZ_HISTOGRAMA, ZONAS_ROJAS
     }
+
     public enum TipoOperadorLocal {SIN_PROCESO, PASO_BAJO, PASO_ALTO, GRADIENTES}
+
     public enum TipoBinarizacion {SIN_PROCESO, ADAPTATIVA, MAXIMO}
+
     public enum TipoSegmentacion {SIN_PROCESO}
+
     public enum TipoReconocimiento {SIN_PROCESO}
 
     private Salida mostrarSalida;
@@ -67,7 +76,7 @@ public class Procesador {
     private TipoReconocimiento tipoReconocimiento;
 
     public Procesador() {
-        mostrarEntradaGris = true;
+        mostrarEntradaGris = false;
         mostrarSalida = Salida.INTENSIDAD;
         tipoIntensidad = TipoIntensidad.LUMINANCIA;
         tipoOperadorLocal = TipoOperadorLocal.SIN_PROCESO;
@@ -85,7 +94,7 @@ public class Procesador {
         // Aumento lineal de contraste
         canales = new MatOfInt(0);
         numero_bins = new MatOfInt(256);
-        intervalo = new MatOfFloat(0,256);
+        intervalo = new MatOfFloat(0, 256);
         hist = new Mat();
         imagenes = new ArrayList<Mat>();
         historiograma = new float[256];
@@ -96,6 +105,8 @@ public class Procesador {
         blue = new Mat();
         maxGB = new Mat();
 
+        // Filtro paso-alto
+        paso_bajo = new Mat();
     }
 
     public Mat procesa(Mat entrada) {
@@ -106,25 +117,22 @@ public class Procesador {
         switch (tipoIntensidad) {
             case SIN_PROCESO:
                 salidaintensidad = entrada;
-                mostrarEntradaGris = false;
                 break;
             case LUMINANCIA:
-                Imgproc.cvtColor(entrada, salidaintensidad,
-                        COLOR_RGBA2GRAY);
+                salidaintensidad = convertirAGris(entrada);
                 break;
             case AUMENTO_LINEAL_CONSTANTE:
-                Imgproc.cvtColor(entrada, gris, COLOR_RGBA2GRAY);
-                Log.e("PROCESA-----","Aumento lineal contraste");
+                gris = convertirAGris(entrada);
+                Log.e("PROCESA-----", "Aumento lineal contraste");
                 salidaintensidad = aumentoLinealConstante(gris); //resultado en salidaintensidad
                 break;
             case EQUALIZ_HISTOGRAMA:
-                Imgproc.cvtColor(entrada, gris, COLOR_RGBA2GRAY);
+                gris = convertirAGris(entrada);
 //Eq. Hist necesita gris
                 Imgproc.equalizeHist(gris, salidaintensidad);
                 break;
             case ZONAS_ROJAS:
                 salidaintensidad = zonaRoja(entrada); //resultado en salidaintensidad
-                mostrarEntradaGris = false;
                 break;
             default:
                 salidaintensidad = entrada;
@@ -138,7 +146,8 @@ public class Procesador {
                 salidatrlocal = salidaintensidad;
                 break;
             case PASO_BAJO:
-                pasoBajo(salidaintensidad); //resultado en salidatrlocal
+                salidaintensidad = convertirAGris(salidaintensidad);
+                salidatrlocal = pasoBajo(salidaintensidad); //resultado en salidatrlocal
                 break;
         }
         if (mostrarSalida == Salida.OPERADOR_LOCAL) {
@@ -174,52 +183,62 @@ public class Procesador {
         return salidaocr;
     }
 
-    Mat zonaRoja(Mat entrada){
-        Core.extractChannel(entrada,red, 0);
-        Core.extractChannel(entrada,green,1);
-        Core.extractChannel(entrada,blue,2);
-        Core.max(green,blue,maxGB);
-        Core.subtract(red,maxGB,salidaTemp);
+    Mat zonaRoja(Mat entrada) {
+        if (entrada.channels() == 1)
+            Imgproc.cvtColor(entrada, entrada, COLOR_GRAY2BGRA);
+        Core.extractChannel(entrada, red, 0);
+        Core.extractChannel(entrada, green, 1);
+        Core.extractChannel(entrada, blue, 2);
+        Core.max(green, blue, maxGB);
+        Core.subtract(red, maxGB, salidaTemp);
         return salidaTemp;
     }
+
     Mat aumentoLinealConstante(Mat entrada) {
         imagenes.clear();
         imagenes.add(entrada);
-        Imgproc.calcHist(imagenes,canales,new Mat(),hist,numero_bins,intervalo);
+        Imgproc.calcHist(imagenes, canales, new Mat(), hist, numero_bins, intervalo);
         hist.get(0, 0, historiograma);
-        int total_pixeles = entrada.cols()*entrada.rows();
+        int total_pixeles = entrada.cols() * entrada.rows();
         float porcentaje_saturacion = (float) 0.05;
         int pixeles_saturados = (int) (porcentaje_saturacion * total_pixeles);
         int xmin = 0;
         int xmax = 255;
         float acumulado = 0f;
-        for (int n=0; n < 256; n++){
+        for (int n = 0; n < 256; n++) {
             acumulado = acumulado + historiograma[n];
-            if (acumulado > pixeles_saturados){
+            if (acumulado > pixeles_saturados) {
                 xmin = n;
                 break;
             }
         }
         acumulado = 0;
-        for (int n=255; n >= 0; n--){
+        for (int n = 255; n >= 0; n--) {
             acumulado = acumulado + historiograma[n];
-            if (acumulado > pixeles_saturados){
+            if (acumulado > pixeles_saturados) {
                 xmax = n;
                 break;
             }
         }
         Core.subtract(entrada, new Scalar(xmin), salidaTemp);
-        float pendiente = ((float) 255.0) / ((float) (xmax-xmin));
+        float pendiente = ((float) 255.0) / ((float) (xmax - xmin));
         Core.multiply(salidaTemp, new Scalar(pendiente), salidaTemp);
 
         return salidaTemp;
     }
-    void pasoBajo(Mat entrada) {
-        salidatrlocal = entrada;
+
+    Mat pasoBajo(Mat entrada) {
+        int filter_size = 17;
+        Size s = new Size(filter_size, filter_size);
+        Imgproc.blur(entrada, paso_bajo, s);
+        Core.subtract(paso_bajo, entrada, salidaTemp);
+        Scalar ganancia = new Scalar(2);
+        Core.multiply(salidaTemp, ganancia, salidaTemp);
+        return salidaTemp;
     }
 
-    void mitadMitad(Mat entrada, Mat salida){
-        Log.e("MITAD CHANNELS",""+salida.channels());
+    void mitadMitad(Mat entrada, Mat salida) {
+        Log.e("MITAD CHANNELS", "" + salida.channels());
         if (mostrarEntradaGris == true && salida.channels() == 1) {
             Imgproc.cvtColor(entrada, entrada, COLOR_RGBA2GRAY);
         }
@@ -228,12 +247,22 @@ public class Procesador {
         mitad_izquierda.x = 0;
         mitad_izquierda.y = 0;
         mitad_izquierda.height = entrada.height();
-        mitad_izquierda.width = entrada.width()/2;
+        mitad_izquierda.width = entrada.width() / 2;
         Mat salida_mitad_izquierda = salida.submat(mitad_izquierda);
         Mat entrada_mitad_izquierda = entrada.submat(mitad_izquierda);
         entrada_mitad_izquierda.copyTo(salida_mitad_izquierda);
         salida_mitad_izquierda.release();
         entrada_mitad_izquierda.release();
+    }
+
+    Mat convertirAGris(Mat temp){
+        if (mostrarEntradaGris == false)
+            Imgproc.cvtColor(temp, temp, COLOR_RGBA2GRAY);
+        return temp;
+    }
+
+    public void setMostrarEntradaGris(boolean mostrarEntradaGris) {
+        this.mostrarEntradaGris = mostrarEntradaGris;
     }
 
     public void setMostrarSalida(Salida mostrarSalida) {

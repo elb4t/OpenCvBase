@@ -38,13 +38,15 @@ import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
 import java.io.File;
+
 import es.elb4t.opencvbase.Procesador.*;
 
 public class MainActivity extends Activity implements CameraBridgeViewBase.CvCameraViewListener2,
-        LoaderCallbackInterface {
+        LoaderCallbackInterface, SharedPreferences.OnSharedPreferenceChangeListener  {
 
     Procesador procesador;
     private boolean pantallaPartida = false;
+    private boolean originalEnGris = false;
 
     private static final int SOLICITUD_PERMISO_CAMARA = 0;
     private static final int SOLICITUD_PERMISO_EXTERNAL_STORAGE = 0;
@@ -54,6 +56,7 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
 
     private int tipoEntrada = 0; // 0 -> cámara 1 -> fichero1 2 -> fichero2
     Mat imagenRecurso_;
+    Mat salida, esquina, entrada;
     boolean recargarRecurso = false;
     private int indiceCamara; // 0-> camara trasera; 1-> camara frontal
     private int cam_anchura = 320;// resolucion deseada de la imagen
@@ -132,7 +135,13 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
         inflater.inflate(R.menu.main_menu, menu);
         return true;
     }
-
+    public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+        if (key.equals("intensidad") && sharedPreferences.getString("intensidad", "SIN_PROCESO").equals("ZONAS_ROJAS")) {
+            sharedPreferences.edit().putString("operador_local", "SIN_PROCESO").commit();
+        } else if (key.equals("operador_local") && sharedPreferences.getString("intensidad", "SIN_PROCESO").equals("PASO_BAJO")) {
+            sharedPreferences.edit().putString("intensidad", "SIN_PROCESO").commit();
+        }
+    }
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
@@ -261,19 +270,39 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
         PreferenceManager.setDefaultValues(this, R.xml.preferencias, false);
         SharedPreferences preferencias = PreferenceManager
                 .getDefaultSharedPreferences(this);
+        originalEnGris = (preferencias.getBoolean("entrada_en_gris", false));
         pantallaPartida = (preferencias.getBoolean("pantalla_partida", true));
         String valor = preferencias.getString("salida", "ENTRADA");
         procesador.setMostrarSalida(Salida.valueOf(valor));
         valor = preferencias.getString("intensidad", "SIN_PROCESO");
         procesador.setTipoIntensidad(TipoIntensidad.valueOf(valor));
+        if (valor.equals("ZONAS_ROJAS")) {
+            originalEnGris = false;
+        }
         valor = preferencias.getString("operador_local", "SIN_PROCESO");
         procesador.setTipoOperadorLocal(TipoOperadorLocal.valueOf(valor));
+        if (valor.equals("PASO_BAJO")) {
+            originalEnGris = true;
+            preferencias.edit().putBoolean("pantalla_partida", false).commit();
+            if (preferencias.getString("intensidad", "SIN_PROCESO").equals("ZONAS_ROJAS")) {
+                preferencias.edit().putString("intensidad", "SIN_PROCESO").commit();
+                procesador.setTipoIntensidad(TipoIntensidad.valueOf("SIN_PROCESO"));
+            }
+        }
         valor = preferencias.getString("binarizacion", "SIN_PROCESO");
         procesador.setTipoBinarizacion(TipoBinarizacion.valueOf(valor));
+        if (valor.equals("BINARIO_SOBRE_ROJA")) {
+            preferencias.edit().putString("intensidad", "ZONAS_ROJAS").commit();
+            procesador.setTipoIntensidad(TipoIntensidad.valueOf("ZONAS_ROJAS"));
+            preferencias.edit().putString("operador_local", "SIN_PROCESO").commit();
+            procesador.setTipoOperadorLocal(TipoOperadorLocal.valueOf("SIN_PROCESO"));
+        }
         valor = preferencias.getString("segmentacion", "SIN_PROCESO");
         procesador.setTipoSegmentacion(TipoSegmentacion.valueOf(valor));
         valor = preferencias.getString("reconocimiento", "SIN_PROCESO");
         procesador.setTipoReconocimiento(TipoReconocimiento.valueOf(valor));
+        preferencias.edit().putBoolean("entrada_en_gris", originalEnGris).commit();
+        procesador.setMostrarEntradaGris(originalEnGris);
     }
 
     @Override
@@ -283,18 +312,20 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
 
     @Override
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
-        Mat entrada;
-        if (tipoEntrada == 0) {
-            entrada = inputFrame.rgba();
 
+        if (tipoEntrada == 0) {
+            if (originalEnGris == false)
+                entrada = inputFrame.rgba();
+            else
+                entrada = inputFrame.gray();
         } else {
-            if(recargarRecurso == true) {
+            if (recargarRecurso == true) {
                 imagenRecurso_ = new Mat();
-//Poner aqui el nombre de los archivos copiados
+                //Poner aqui el nombre de los archivos copiados
                 int RECURSOS_FICHEROS[] = {0, R.raw.img1, R.raw.img2};
                 Bitmap bitmap = BitmapFactory.decodeResource(getResources(),
                         RECURSOS_FICHEROS[tipoEntrada]);
-//Convierte el recurso a una Mat de OpenCV
+                //Convierte el recurso a una Mat de OpenCV
                 Utils.bitmapToMat(bitmap, imagenRecurso_);
                 Imgproc.resize(imagenRecurso_, imagenRecurso_, new Size(cam_anchura,
                         cam_altura));
@@ -302,25 +333,25 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
             }
             entrada = imagenRecurso_;
         }
-        Mat esquina = entrada.submat(0,10,0,10); //Arriba-izquierda
-        esquina.setTo(new Scalar(255,255,255));
-        Mat salida = procesador.procesa(entrada);
+        esquina = entrada.submat(0, 10, 0, 10); //Arriba-izquierda
+        esquina.setTo(new Scalar(255, 255, 255));
+        salida = procesador.procesa(entrada);
 
         if (pantallaPartida == true) {
-            //entrada = inputFrame.gray();
             procesador.mitadMitad(entrada, salida);
-            Log.e("MAIN-----","Mitad mitad");
+            Log.e("MAIN-----", "Mitad mitad");
         }
         if (guardarSiguienteImagen) {//Para foto salida debe ser rgba
             takePhoto(entrada, salida);
             guardarSiguienteImagen = false;
         }
-        if(tipoEntrada > 0) {
-//Es necesario que el tamaño de la salida coincida con el real de captura
-            Imgproc.resize(salida, salida, new Size(cam_anchura , cam_altura));
+        if (tipoEntrada > 0) {
+            //Es necesario que el tamaño de la salida coincida con el real de captura
+            Imgproc.resize(salida, salida, new Size(cam_anchura, cam_altura));
         }
         return salida;
     }
+
     private void takePhoto(final Mat input, final Mat output) {
 // Determina la ruta para crear los archivos
         final long currentTimeMillis = System.currentTimeMillis();
