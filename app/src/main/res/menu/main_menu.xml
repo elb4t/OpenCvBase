@@ -41,4 +41,7 @@
         android:icon="@android:drawable/ic_menu_gallery"
         android:title=" Guardar imagenes ">
     </item>
+    <item android:id="@+id/preferencias"
+        android:icon="@android:drawable/ic_menu_preferences"
+        android:title="Preferencias"/>
 </menu>

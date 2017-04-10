@@ -2,10 +2,13 @@ package es.elb4t.opencvbase;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.os.Environment;
+import android.preference.PreferenceManager;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
@@ -35,11 +38,13 @@ import org.opencv.imgcodecs.Imgcodecs;
 import org.opencv.imgproc.Imgproc;
 
 import java.io.File;
+import es.elb4t.opencvbase.Procesador.*;
 
 public class MainActivity extends Activity implements CameraBridgeViewBase.CvCameraViewListener2,
         LoaderCallbackInterface {
 
     Procesador procesador;
+    private boolean pantallaPartida = false;
 
     private static final int SOLICITUD_PERMISO_CAMARA = 0;
     private static final int SOLICITUD_PERMISO_EXTERNAL_STORAGE = 0;
@@ -168,6 +173,10 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
             case R.id.guardar_imagenes:
                 guardarSiguienteImagen = true;
                 break;
+            case R.id.preferencias:
+                Intent i = new Intent(this, Preferencias.class);
+                startActivity(i);
+                break;
         }
         String msg = "W=" + Integer.toString(cam_anchura) + " H= " +
                 Integer.toString(cam_altura) + " Cam= " +
@@ -196,7 +205,7 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
         OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_1_0, this,
                 this);
 
-        int rotacion = getWindowManager().getDefaultDisplay().getRotation();
+        /*int rotacion = getWindowManager().getDefaultDisplay().getRotation();
         //Orientacion vertical
         if (rotacion==Surface.ROTATION_0 || rotacion == Surface.ROTATION_180) {
             cam_anchura = 240;
@@ -205,7 +214,7 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
         }// orientacion horizontal
         else {
             reiniciarResolucion();
-        }
+        }*/
     }
 
     @Override
@@ -243,6 +252,23 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
         procesador = new Procesador();
         cam_altura = height; //Estas son las que se usan de verdad
         cam_anchura = width;
+
+        PreferenceManager.setDefaultValues(this, R.xml.preferencias, false);
+        SharedPreferences preferencias = PreferenceManager
+                .getDefaultSharedPreferences(this);
+        pantallaPartida = (preferencias.getBoolean("pantalla_partida", true));
+        String valor = preferencias.getString("salida", "ENTRADA");
+        procesador.setMostrarSalida(Salida.valueOf(valor));
+        valor = preferencias.getString("intensidad", "SIN_PROCESO");
+        procesador.setTipoIntensidad(TipoIntensidad.valueOf(valor));
+        valor = preferencias.getString("operador_local", "SIN_PROCESO");
+        procesador.setTipoOperadorLocal(TipoOperadorLocal.valueOf(valor));
+        valor = preferencias.getString("binarizacion", "SIN_PROCESO");
+        procesador.setTipoBinarizacion(TipoBinarizacion.valueOf(valor));
+        valor = preferencias.getString("segmentacion", "SIN_PROCESO");
+        procesador.setTipoSegmentacion(TipoSegmentacion.valueOf(valor));
+        valor = preferencias.getString("reconocimiento", "SIN_PROCESO");
+        procesador.setTipoReconocimiento(TipoReconocimiento.valueOf(valor));
     }
 
     @Override
@@ -254,8 +280,8 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
         Mat entrada;
         if (tipoEntrada == 0) {
-            //entrada = inputFrame.rgba();
-            entrada = inputFrame.gray();
+            entrada = inputFrame.rgba();
+            //entrada = inputFrame.gray();
         } else {
             if(recargarRecurso == true) {
                 imagenRecurso_ = new Mat();

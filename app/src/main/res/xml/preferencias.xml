@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen
+    xmlns:android="http://schemas.android.com/apk/res/android" >
+    <PreferenceCategory android:title="Ajustes básicos">
+        <CheckBoxPreference
+            android:key="pantalla_partida"
+            android:title="Pantalla partida"
+            android:summary="Muestra a la izquierda la entrada y a la derecha la
+salida"
+            android:defaultValue="false"/>
+        <ListPreference
+            android:key="salida"
+            android:title="Salida a Mostrar"
+            android:summary="Muestra el proceso hasta la fase indicada"
+            android:entries="@array/tipoSalida"
+            android:entryValues="@array/valorSalida"
+            android:defaultValue="RECONOCIMIENTO"/>
+    </PreferenceCategory>
+    <PreferenceCategory android:title="Configurar Fases del proceso">
+        <ListPreference
+            android:key="intensidad"
+            android:title="Transformación Intensidad"
+            android:summary="Obtiene imagen de grises mejorando distribución intensidades"
+            android:entries="@array/tipoIntensidad"
+            android:entryValues="@array/valorIntensidad"
+            android:defaultValue="SIN_PROCESO"/>
+        <ListPreference
+            android:key="operador_local"
+            android:title="Operador Local"
+            android:summary="Aplica un operador local"
+            android:entries="@array/tipoOperadorLocal"
+            android:entryValues="@array/valorOperadorLocal"
+            android:defaultValue="SIN_PROCESO"/>
+        <ListPreference
+            android:key="binarizacion"
+            android:title="Binarización"
+            android:summary="Obtiene una imagen binaria a partir de una de grises"
+            android:entries="@array/tipoBinarizacion"
+            android:entryValues="@array/valorBinarizacion"
+            android:defaultValue="SIN_PROCESO"/>
+        <ListPreference
+            android:key="segmentacion"
+            android:title="Segmentación"
+            android:summary="Localiza objetos en la imagen"
+            android:entries="@array/tipoSegmentacion"
+            android:entryValues="@array/valorSegmentacion"
+            android:defaultValue="SIN_PROCESO"/>
+        <ListPreference
+            android:key="reconocimiento"
+            android:title="Reconocimiento"
+            android:summary="Identifica los objetos encontrados"
+            android:entries="@array/tipoReconocimiento"
+            android:entryValues="@array/valorReconocimiento"
+            android:defaultValue="SIN_PROCESO"/>
+    </PreferenceCategory>
+</PreferenceScreen>
