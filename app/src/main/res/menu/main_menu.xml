@@ -10,6 +10,9 @@
         android:title="Cambiar resolucion">
         <menu>
             <item
+                android:id="@+id/resolucion_original"
+                android:title="Original camera" />
+            <item
                 android:id="@+id/resolucion_800x600"
                 android:title="800x600" />
             <item

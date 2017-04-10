@@ -144,6 +144,11 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
                     indiceCamara = CameraBridgeViewBase.CAMERA_ID_FRONT;
                 recreate();
                 break;
+            case R.id.resolucion_original:
+                cam_anchura = 1280;
+                cam_altura = 720;
+                reiniciarResolucion();
+                break;
             case R.id.resolucion_800x600:
                 cam_anchura = 800;
                 cam_altura = 600;

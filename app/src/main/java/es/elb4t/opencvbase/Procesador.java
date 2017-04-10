@@ -1,5 +1,6 @@
 package es.elb4t.opencvbase;
 
+import android.os.CpuUsageInfo;
 import android.util.Log;
 
 import org.opencv.core.Core;
@@ -21,6 +22,8 @@ import static org.opencv.imgproc.Imgproc.*;
 
 public class Procesador {
 
+    private boolean mostrarEntradaGris = true;
+    private Mat salidaTemp;
     private Mat gris;
     private Mat salidaintensidad;
     private Mat salidatrlocal;
@@ -35,6 +38,12 @@ public class Procesador {
     Mat hist;
     List<Mat> imagenes;
     float[] historiograma;
+
+    //Zonas rojas
+    Mat red;
+    Mat green;
+    Mat blue;
+    Mat maxGB;
 
 
     public enum Salida {
@@ -58,6 +67,7 @@ public class Procesador {
     private TipoReconocimiento tipoReconocimiento;
 
     public Procesador() {
+        mostrarEntradaGris = true;
         mostrarSalida = Salida.INTENSIDAD;
         tipoIntensidad = TipoIntensidad.LUMINANCIA;
         tipoOperadorLocal = TipoOperadorLocal.SIN_PROCESO;
@@ -70,6 +80,7 @@ public class Procesador {
         salidasegmentacion = new Mat();
         salidaocr = new Mat();
         gris = new Mat();
+        salidaTemp = new Mat();
 
         // Aumento lineal de contraste
         canales = new MatOfInt(0);
@@ -78,6 +89,12 @@ public class Procesador {
         hist = new Mat();
         imagenes = new ArrayList<Mat>();
         historiograma = new float[256];
+
+        // Zonas rojas
+        red = new Mat();
+        green = new Mat();
+        blue = new Mat();
+        maxGB = new Mat();
 
     }
 
@@ -89,6 +106,7 @@ public class Procesador {
         switch (tipoIntensidad) {
             case SIN_PROCESO:
                 salidaintensidad = entrada;
+                mostrarEntradaGris = false;
                 break;
             case LUMINANCIA:
                 Imgproc.cvtColor(entrada, salidaintensidad,
@@ -105,7 +123,8 @@ public class Procesador {
                 Imgproc.equalizeHist(gris, salidaintensidad);
                 break;
             case ZONAS_ROJAS:
-                zonaRoja(entrada); //resultado en salidaintensidad
+                salidaintensidad = zonaRoja(entrada); //resultado en salidaintensidad
+                mostrarEntradaGris = false;
                 break;
             default:
                 salidaintensidad = entrada;
@@ -155,11 +174,15 @@ public class Procesador {
         return salidaocr;
     }
 
-    void zonaRoja(Mat entrada){
-        salidaintensidad = entrada;
+    Mat zonaRoja(Mat entrada){
+        Core.extractChannel(entrada,red, 0);
+        Core.extractChannel(entrada,green,1);
+        Core.extractChannel(entrada,blue,2);
+        Core.max(green,blue,maxGB);
+        Core.subtract(red,maxGB,salidaTemp);
+        return salidaTemp;
     }
     Mat aumentoLinealConstante(Mat entrada) {
-        Mat salida = new Mat();
         imagenes.clear();
         imagenes.add(entrada);
         Imgproc.calcHist(imagenes,canales,new Mat(),hist,numero_bins,intervalo);
@@ -185,11 +208,11 @@ public class Procesador {
                 break;
             }
         }
-        Core.subtract(entrada, new Scalar(xmin), salida);
+        Core.subtract(entrada, new Scalar(xmin), salidaTemp);
         float pendiente = ((float) 255.0) / ((float) (xmax-xmin));
-        Core.multiply(salida, new Scalar(pendiente), salida);
+        Core.multiply(salidaTemp, new Scalar(pendiente), salidaTemp);
 
-        return salida;
+        return salidaTemp;
     }
     void pasoBajo(Mat entrada) {
         salidatrlocal = entrada;
@@ -197,7 +220,7 @@ public class Procesador {
 
     void mitadMitad(Mat entrada, Mat salida){
         Log.e("MITAD CHANNELS",""+salida.channels());
-        if (salida.channels() == 1) {
+        if (mostrarEntradaGris == true && salida.channels() == 1) {
             Imgproc.cvtColor(entrada, entrada, COLOR_RGBA2GRAY);
         }
 
@@ -209,6 +232,8 @@ public class Procesador {
         Mat salida_mitad_izquierda = salida.submat(mitad_izquierda);
         Mat entrada_mitad_izquierda = entrada.submat(mitad_izquierda);
         entrada_mitad_izquierda.copyTo(salida_mitad_izquierda);
+        salida_mitad_izquierda.release();
+        entrada_mitad_izquierda.release();
     }
 
     public void setMostrarSalida(Salida mostrarSalida) {
