@@ -62,7 +62,7 @@ public class Procesador {
 
     public enum TipoOperadorLocal {SIN_PROCESO, PASO_BAJO, PASO_ALTO, GRADIENTES}
 
-    public enum TipoBinarizacion {SIN_PROCESO, ADAPTATIVA, MAXIMO}
+    public enum TipoBinarizacion {SIN_PROCESO,BINARIO_SOBRE_ROJA, ADAPTATIVA, MAXIMO}
 
     public enum TipoSegmentacion {SIN_PROCESO}
 
@@ -158,6 +158,9 @@ public class Procesador {
             case SIN_PROCESO:
                 salidabinarizacion = salidatrlocal;
                 break;
+            case BINARIO_SOBRE_ROJA:
+                salidabinarizacion = binarioSobreRoja(salidatrlocal);
+                break;
             default:
                 salidabinarizacion = salidatrlocal;
                 break;
@@ -235,6 +238,14 @@ public class Procesador {
         Scalar ganancia = new Scalar(2);
         Core.multiply(salidaTemp, ganancia, salidaTemp);
         return salidaTemp;
+    }
+
+    Mat binarioSobreRoja(Mat entrada){
+        Core.MinMaxLocResult minMax = Core.minMaxLoc(entrada);
+        int maximum = (int) minMax.maxVal;
+        int thresh = maximum / 4;
+        Imgproc.threshold(entrada, entrada, thresh, 255, THRESH_BINARY);
+        return entrada;
     }
 
     void mitadMitad(Mat entrada, Mat salida) {

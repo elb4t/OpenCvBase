@@ -40,9 +40,11 @@
     </string-array>
     <string-array name="tipoBinarizacion">
         <item>Sin proceso</item>
+        <item>Binario sobre zona roja</item>
     </string-array>
     <string-array name="valorBinarizacion">
         <item>SIN_PROCESO</item>
+        <item>BINARIO_SOBRE_ROJA</item>
     </string-array>
     <string-array name="tipoSegmentacion">
         <item>Sin proceso</item>
