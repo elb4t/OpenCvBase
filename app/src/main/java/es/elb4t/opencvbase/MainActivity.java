@@ -46,7 +46,7 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
 
     Procesador procesador;
     private boolean pantallaPartida = false;
-    private boolean originalEnGris = false;
+    //private boolean originalEnGris = false;
 
     private static final int SOLICITUD_PERMISO_CAMARA = 0;
     private static final int SOLICITUD_PERMISO_EXTERNAL_STORAGE = 0;
@@ -54,10 +54,10 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
     private static final String TAG = "EjemploOCV(MainActivity";
     private CameraBridgeViewBase cameraView;
 
-    private int tipoEntrada = 0; // 0 -> cámara 1 -> fichero1 2 -> fichero2
+    private int tipoEntrada = 1; // 0 -> cámara 1 -> fichero1 2 -> fichero2
     Mat imagenRecurso_;
     Mat salida, esquina, entrada;
-    boolean recargarRecurso = false;
+    boolean recargarRecurso = true;
     private int indiceCamara; // 0-> camara trasera; 1-> camara frontal
     private int cam_anchura = 320;// resolucion deseada de la imagen
     private int cam_altura = 240;
@@ -70,12 +70,6 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_main);
         vista = findViewById(R.id.layoutApp);
-
-        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED &&
-                ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-            solicitarPermisoCamara();
-            solicitarPermisoArchivos();
-        }
 
         if (savedInstanceState != null) {
             indiceCamara = savedInstanceState.getInt(STATE_CAMERA_INDEX, 0);
@@ -90,30 +84,18 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
     }
 
     void solicitarPermisoCamara() {
-        if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA)) {
-            Snackbar.make(vista, "Falta el permiso de la camera", Snackbar.LENGTH_INDEFINITE).setAction("OK", new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.CAMERA}, SOLICITUD_PERMISO_CAMARA);
-                }
-            }).show();
-        } else {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.CAMERA}, SOLICITUD_PERMISO_CAMARA);
-
+        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.CAMERA)) {
+                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.CAMERA}, SOLICITUD_PERMISO_CAMARA);
+            }
         }
     }
 
     void solicitarPermisoArchivos() {
-        if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
-            Snackbar.make(vista, "Falta el permiso de archivo", Snackbar.LENGTH_INDEFINITE).setAction("OK", new View.OnClickListener() {
-                @Override
-                public void onClick(View view) {
-                    ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, SOLICITUD_PERMISO_EXTERNAL_STORAGE);
-                }
-            }).show();
-        } else {
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, SOLICITUD_PERMISO_EXTERNAL_STORAGE);
-
+        if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
+            if (ActivityCompat.shouldShowRequestPermissionRationale(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)) {
+                ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, SOLICITUD_PERMISO_EXTERNAL_STORAGE);
+            }
         }
     }
 
@@ -146,11 +128,10 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
             case R.id.cambiarCamara:
-                indiceCamara++;
                 if (indiceCamara == CameraBridgeViewBase.CAMERA_ID_BACK) {
-                    indiceCamara = CameraBridgeViewBase.CAMERA_ID_BACK;
-                } else
                     indiceCamara = CameraBridgeViewBase.CAMERA_ID_FRONT;
+                } else
+                    indiceCamara = CameraBridgeViewBase.CAMERA_ID_BACK;
                 recreate();
                 break;
             case R.id.resolucion_original:
@@ -185,6 +166,7 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
                 recargarRecurso = true;
                 break;
             case R.id.guardar_imagenes:
+                solicitarPermisoArchivos();
                 guardarSiguienteImagen = true;
                 break;
             case R.id.preferencias:
@@ -216,6 +198,7 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
     @Override
     public void onResume() {
         super.onResume();
+        solicitarPermisoCamara();
         OpenCVLoader.initAsync(OpenCVLoader.OPENCV_VERSION_3_1_0, this,
                 this);
 
@@ -270,39 +253,33 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
         PreferenceManager.setDefaultValues(this, R.xml.preferencias, false);
         SharedPreferences preferencias = PreferenceManager
                 .getDefaultSharedPreferences(this);
-        originalEnGris = (preferencias.getBoolean("entrada_en_gris", false));
         pantallaPartida = (preferencias.getBoolean("pantalla_partida", true));
         String valor = preferencias.getString("salida", "ENTRADA");
         procesador.setMostrarSalida(Salida.valueOf(valor));
         valor = preferencias.getString("intensidad", "SIN_PROCESO");
         procesador.setTipoIntensidad(TipoIntensidad.valueOf(valor));
-        if (valor.equals("ZONAS_ROJAS")) {
-            originalEnGris = false;
-        }
+
         valor = preferencias.getString("operador_local", "SIN_PROCESO");
         procesador.setTipoOperadorLocal(TipoOperadorLocal.valueOf(valor));
-        if (valor.equals("PASO_BAJO")) {
-            originalEnGris = true;
+        /*if (valor.equals("PASO_BAJO")) {
             preferencias.edit().putBoolean("pantalla_partida", false).commit();
             if (preferencias.getString("intensidad", "SIN_PROCESO").equals("ZONAS_ROJAS")) {
                 preferencias.edit().putString("intensidad", "SIN_PROCESO").commit();
                 procesador.setTipoIntensidad(TipoIntensidad.valueOf("SIN_PROCESO"));
             }
-        }
+        }*/
         valor = preferencias.getString("binarizacion", "SIN_PROCESO");
         procesador.setTipoBinarizacion(TipoBinarizacion.valueOf(valor));
-        if (valor.equals("BINARIO_SOBRE_ROJA")) {
+        /*if (valor.equals("BINARIO_SOBRE_ROJA")) {
             preferencias.edit().putString("intensidad", "ZONAS_ROJAS").commit();
             procesador.setTipoIntensidad(TipoIntensidad.valueOf("ZONAS_ROJAS"));
             preferencias.edit().putString("operador_local", "SIN_PROCESO").commit();
             procesador.setTipoOperadorLocal(TipoOperadorLocal.valueOf("SIN_PROCESO"));
-        }
+        }*/
         valor = preferencias.getString("segmentacion", "SIN_PROCESO");
         procesador.setTipoSegmentacion(TipoSegmentacion.valueOf(valor));
         valor = preferencias.getString("reconocimiento", "SIN_PROCESO");
         procesador.setTipoReconocimiento(TipoReconocimiento.valueOf(valor));
-        preferencias.edit().putBoolean("entrada_en_gris", originalEnGris).commit();
-        procesador.setMostrarEntradaGris(originalEnGris);
     }
 
     @Override
@@ -314,10 +291,10 @@ public class MainActivity extends Activity implements CameraBridgeViewBase.CvCam
     public Mat onCameraFrame(CameraBridgeViewBase.CvCameraViewFrame inputFrame) {
 
         if (tipoEntrada == 0) {
-            if (originalEnGris == false)
+           // if (originalEnGris == false)
                 entrada = inputFrame.rgba();
-            else
-                entrada = inputFrame.gray();
+           // else
+            //    entrada = inputFrame.gray();
         } else {
             if (recargarRecurso == true) {
                 imagenRecurso_ = new Mat();

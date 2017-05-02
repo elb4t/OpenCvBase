@@ -2,10 +2,10 @@
 <PreferenceScreen
     xmlns:android="http://schemas.android.com/apk/res/android" >
     <PreferenceCategory android:title="Ajustes básicos">
-        <SwitchPreference
+        <!--<SwitchPreference
             android:defaultValue="false"
             android:key="entrada_en_gris"
-            android:title="Entrada en gris" />
+            android:title="Entrada en gris" />-->
         <CheckBoxPreference
             android:key="pantalla_partida"
             android:title="Pantalla partida"

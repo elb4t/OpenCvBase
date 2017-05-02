@@ -23,9 +23,8 @@ import static org.opencv.imgproc.Imgproc.*;
 
 public class Procesador {
 
-    private boolean mostrarEntradaGris;
+    //private boolean mostrarEntradaGris;
     private Mat salidaTemp;
-    private Mat gris;
     private Mat salidaintensidad;
     private Mat salidatrlocal;
     private Mat salidabinarizacion;
@@ -76,7 +75,7 @@ public class Procesador {
     private TipoReconocimiento tipoReconocimiento;
 
     public Procesador() {
-        mostrarEntradaGris = false;
+       // mostrarEntradaGris = false;
         mostrarSalida = Salida.INTENSIDAD;
         tipoIntensidad = TipoIntensidad.LUMINANCIA;
         tipoOperadorLocal = TipoOperadorLocal.SIN_PROCESO;
@@ -88,7 +87,6 @@ public class Procesador {
         salidabinarizacion = new Mat();
         salidasegmentacion = new Mat();
         salidaocr = new Mat();
-        gris = new Mat();
         salidaTemp = new Mat();
 
         // Aumento lineal de contraste
@@ -122,14 +120,12 @@ public class Procesador {
                 salidaintensidad = convertirAGris(entrada);
                 break;
             case AUMENTO_LINEAL_CONSTANTE:
-                gris = convertirAGris(entrada);
                 Log.e("PROCESA-----", "Aumento lineal contraste");
-                salidaintensidad = aumentoLinealConstante(gris); //resultado en salidaintensidad
+                salidaintensidad = aumentoLinealConstante(convertirAGris(entrada)); //resultado en salidaintensidad
                 break;
             case EQUALIZ_HISTOGRAMA:
-                gris = convertirAGris(entrada);
 //Eq. Hist necesita gris
-                Imgproc.equalizeHist(gris, salidaintensidad);
+                Imgproc.equalizeHist(convertirAGris(entrada), salidaintensidad);
                 break;
             case ZONAS_ROJAS:
                 salidaintensidad = zonaRoja(entrada); //resultado en salidaintensidad
@@ -146,8 +142,7 @@ public class Procesador {
                 salidatrlocal = salidaintensidad;
                 break;
             case PASO_BAJO:
-                salidaintensidad = convertirAGris(salidaintensidad);
-                salidatrlocal = pasoBajo(salidaintensidad); //resultado en salidatrlocal
+                salidatrlocal = pasoBajo(convertirAGris(salidaintensidad)); //resultado en salidatrlocal
                 break;
         }
         if (mostrarSalida == Salida.OPERADOR_LOCAL) {
@@ -250,7 +245,7 @@ public class Procesador {
 
     void mitadMitad(Mat entrada, Mat salida) {
         Log.e("MITAD CHANNELS", "" + salida.channels());
-        if (mostrarEntradaGris == true && salida.channels() == 1) {
+        if (salida.channels() != 1) {
             Imgproc.cvtColor(entrada, entrada, COLOR_RGBA2GRAY);
         }
 
@@ -267,14 +262,12 @@ public class Procesador {
     }
 
     Mat convertirAGris(Mat temp){
-        if (mostrarEntradaGris == false)
+        Log.e("CONVERTIR GRIS", "" + temp.channels());
+        if (temp.channels() != 1)
             Imgproc.cvtColor(temp, temp, COLOR_RGBA2GRAY);
         return temp;
     }
 
-    public void setMostrarEntradaGris(boolean mostrarEntradaGris) {
-        this.mostrarEntradaGris = mostrarEntradaGris;
-    }
 
     public void setMostrarSalida(Salida mostrarSalida) {
         this.mostrarSalida = mostrarSalida;
